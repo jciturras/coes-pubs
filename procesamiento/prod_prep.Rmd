@@ -90,7 +90,6 @@ df_wos_scopus <-
   #filtramos por WOS y Scopus
   dplyr::filter(indexacion %in% c("WoS","WOS","Scopus")) %>% 
   # limpiamos el string de DOI y creamos uno nuevo.
-  # los "No disponible" los pasamos a missing
   mutate(doi=str_replace_all(doiisbnlink,c("doi.org/"="",
                                            "https://" = "",
                                            "http://" = "",
@@ -115,8 +114,6 @@ frq_1<- sjmisc::frq(df_wos_scopus$doi) %>%
 frq_1 %>% filter(frq>=2) # Hay varios
 sjmisc::frq(is.na(df_wos_scopus$doi)) #sin nada
 
-
-#[PROBLEMA!!]: elimina los NA
 df_wos_scopus_clean <-  df_wos_scopus[rev(!duplicated(rev(df_wos_scopus$doi),incomparables = NA)),]
 
 frq_2<- sjmisc::frq(df_wos_scopus_clean$doi) %>% 
