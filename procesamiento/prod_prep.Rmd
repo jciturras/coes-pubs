@@ -164,6 +164,24 @@ xlsx::write.xlsx(doi_faltantes,file = here::here("output/doi_faltantes.xlsx"))
 ```
 
 ```{r}
+#cargar base con IF
+df_if <-data.table::fread(file = here::here("input/data/original/factor_impacto.csv"),stringsAsFactors =T)
+#ajustar nombres
+names(df_if) <- c("rank","journal_name_lower","total_cites","impactfactor","eigenfactor")
+#nombres lowercase
+df_if$journal_name_lower <- tolower(df_if$journal_name_lower)
+publication_info_wos_scopus$journal_name_lower <-tolower(publication_info_wos_scopus$journal_name) 
+
+
+#merge usando variable nombre en lowercase
+#falta depurar nombres con ñ o tildes, pueden recuperarse mas.
+df_doi_if<- left_join(publication_info_wos_scopus,
+                      df_if, 
+                      by ="journal_name_lower")
+```
+
+
+```{r}
 # fuente: https://cran.r-project.org/web/packages/JCRImpactFactor/JCRImpactFactor.pdf
 # install.packages("JCRImpactFactor")
 journal_if <- JCRImpactFactor::find.IF.JCR(publication_info$journal_name, year=2019)
