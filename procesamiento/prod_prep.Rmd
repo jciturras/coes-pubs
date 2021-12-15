@@ -49,7 +49,8 @@ pacman::p_load(dplyr,       # Manipulacion de datos
                sjlabelled,  # etiquetado de variables
                sjmisc,      # descriptivos y frecuencias
                sjPlot,      # tablas, plots y descriptivos
-               summarytools# resumen de dataframe
+               summarytools,# resumen de dataframe
+               stringr
                )
 ```
 
@@ -75,7 +76,7 @@ names(df_pubs) <-
     "\\)" = " ",
     "%"= " ",
     "\\." = ""
-  )) %>%
+  ))
 
 ```
 
@@ -96,10 +97,12 @@ df_wos_scopus <-
                                            "dx." = "",
                                            "DOI: "="",
                                            "DOI "= "",
+                                           "DOI"= "",
                                            "doi:"="",
-                                           "No disponible"=NA,
+                                           ":"= "",
                                            " "="",
-                                           " "=""))) %>% 
+                                           " "="",
+                                           "www."=""))) %>% 
   #seleccionamos y ordenamos
   select(id,indexacion,doi,doiisbnlink,anoreporteanid,anopublicacion,everything()) %>% 
   arrange(desc(indexacion),doi)
@@ -111,12 +114,69 @@ frq_1<- sjmisc::frq(df_wos_scopus$doi) %>%
   as.data.frame()
 frq_1 %>% filter(frq>=2) # Hay varios
 sjmisc::frq(is.na(df_wos_scopus$doi)) #sin nada
+
+
+#[PROBLEMA!!]: elimina los NA
+df_wos_scopus_clean <-  df_wos_scopus[rev(!duplicated(rev(df_wos_scopus$doi),incomparables = NA)),]
+
+frq_2<- sjmisc::frq(df_wos_scopus_clean$doi) %>% 
+  as.data.frame()
+frq_2 %>% filter(frq>=2) # OK, sin duplicados
+row.names(df_wos_scopus_clean) <- NULL #reset rownames
 ```
+
+
+```{r}
+# metricas de publicaciones y journals
+
+# fuente: https://cran.r-project.org/web/packages/roadoi/vignettes/intro.html
+# install.packages("roadoi")
+
+publication_info_wos_scopus <-
+  roadoi::oadoi_fetch(dois = df_wos_scopus_clean$doi,
+                      email = "julioiturrasanhueza@gmail.com",
+                      .progress = "text")
+
+
+publication_info_wos<- 
+  roadoi::oadoi_fetch(dois = df_wos_scopus_clean$doi[df_wos_scopus_clean$indexacion=="WoS"],
+                      email = "julioiturrasanhueza@gmail.com",
+                      .progress = "text")
+
+publication_info_socpus<- 
+  roadoi::oadoi_fetch(dois = df_wos_scopus_clean$doi[df_wos_scopus_clean$indexacion=="Scopus"],
+                      email = "julioiturrasanhueza@gmail.com",
+                      .progress = "text")
+
+
+#unificamos para identificar missing = DOI con problemas
+df_info <- publication_info %>% select(doi,title,year)
+df_coes <- df_wos_scopus_clean %>% select(id,doi,titulo,anopublicacion)
+doi_faltantes <- full_join(df_coes,df_info) 
+#Entonces, revisamos los NA en title,
+#identificar los faltantes. Los que tienen NA en title:
+#explicacioon: al usar la funcion para buscar info, usa el DOI, si el DOI esta malo, no encuentra nada.
+table(is.na(doi_faltantes$title))
+
+#creamos variable para marcar papers a revisar:
+doi_faltantes$revisar_doi <- ifelse(test = is.na(doi_faltantes$title),
+                                    yes = "REVISAR DOI", 
+                                    no = "NO REVISAR DOI ")
+table(doi_faltantes$revisar_doi)
+xlsx::write.xlsx(doi_faltantes,file = here::here("output/doi_faltantes.xlsx"))
+```
+
+```{r}
+# fuente: https://cran.r-project.org/web/packages/JCRImpactFactor/JCRImpactFactor.pdf
+# install.packages("JCRImpactFactor")
+journal_if <- JCRImpactFactor::find.IF.JCR(publication_info$journal_name, year=2019)
+```
+
 
 # Guardar datos
 
 ```{r}
-# save(df_final,file = "../input/data/proc/df_final.Rdata")
+# save(df_wos_scopus_clean,file = "../input/data/proc/df_wos_scopus.Rdata")
 ```
 
 
